@@ -25,6 +25,9 @@
         <module name="maven.tomcat-ewar" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="maven.tomcat-ewar" target="1.7" />
+    </bytecodeTargetLevel>
   </component>
 </project>
 
