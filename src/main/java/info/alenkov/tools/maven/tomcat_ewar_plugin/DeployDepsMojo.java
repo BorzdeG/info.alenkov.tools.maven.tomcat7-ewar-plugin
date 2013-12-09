@@ -9,13 +9,16 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.twdata.maven.mojoexecutor.MojoExecutor;
 
 import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 
-@Mojo(name = "deploy-deps", defaultPhase = LifecyclePhase.DEPLOY)
+@Mojo(name = "deploy-deps",
+      requiresDependencyResolution = ResolutionScope.TEST,
+      defaultPhase = LifecyclePhase.PROCESS_SOURCES, threadSafe = true)
 public class DeployDepsMojo extends AbstractMojo {
 
 	@Component
@@ -29,18 +32,15 @@ public class DeployDepsMojo extends AbstractMojo {
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		_pluginEnv = executionEnvironment(mavenProject, mavenSession, pluginManager);
-
-		collectDependencies();
+		copyDependencies();
 	}
 
-	private void collectDependencies() throws MojoExecutionException {
-		Plugin pluginDependency = plugin("org.apache.maven.plugins", "maven-dependency-plugin");
+	private void copyDependencies() throws MojoExecutionException {
+		// TODO expects corrections https://github.com/TimMoore/mojo-executor/issues/18
+		Plugin pluginDependency = plugin("org.apache.maven.plugins", "maven-dependency-plugin", "2.8");
 
-		Xpp3Dom cfg = new Xpp3Dom("configuration");
-		Xpp3Dom entry0 = new Xpp3Dom("useSubDirectoryPerScope");
-		entry0.setValue("true");
-		cfg.addChild(entry0);
+		final Xpp3Dom cfg = configuration(element(name("useSubDirectoryPerScope"), "true"));
 
-		executeMojo(pluginDependency, "copy-dependencies", cfg, _pluginEnv);
+		executeMojo(pluginDependency, goal("copy-dependencies"), cfg, _pluginEnv);
 	}
 }
