@@ -6,7 +6,7 @@
 
 	<groupId>info.alenkov.tools.maven</groupId>
 	<artifactId>tomcat7-ewar-plugin</artifactId>
-	<version>1.0</version>
+	<version>1.1</version>
 	<packaging>maven-plugin</packaging>
 
 	<build>
@@ -148,8 +148,8 @@
 	</properties>
 	<distributionManagement>
 		<repository>
-			<id>itbasis.ru\repo</id>
-			<name>itbasis.ru\repo</name>
+			<id>itbasis.ru\[repo]</id>
+			<name>itbasis.ru\[repo]</name>
 			<url>http://artifactory.itbasis.ru/artifactory/plugins-release-local</url>
 		</repository>
 	</distributionManagement>

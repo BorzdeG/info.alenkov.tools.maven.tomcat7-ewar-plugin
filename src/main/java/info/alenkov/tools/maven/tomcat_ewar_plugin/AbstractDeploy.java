@@ -7,6 +7,7 @@ import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.twdata.maven.mojoexecutor.MojoExecutor;
@@ -31,6 +32,11 @@ abstract public class AbstractDeploy extends AbstractMojo {
 	protected MojoExecutor.ExecutionEnvironment _pluginEnv;
 	protected Plugin                            _pluginExec;
 
+	@Parameter(defaultValue = "${ssh.user}@${ssh.host}")
+	public String sshConnect;
+	@Parameter(defaultValue = "${putty.key}")
+	public String puttyKey;
+
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		_pluginEnv = executionEnvironment(mavenProject, mavenSession, pluginManager);
@@ -42,7 +48,7 @@ abstract public class AbstractDeploy extends AbstractMojo {
 		final Element el1 = element(name("argument"), "-4");
 		final Element el2 = element(name("argument"), "-agent");
 		final Element el3 = element(name("argument"), "-i");
-		final Element el4 = element(name("argument"), "${putty.key}");
+		final Element el4 = element(name("argument"), puttyKey);
 		return configuration(element(name(PLG_EXEC_CFG_ARGUMENTS), el0, el1, el2, el3, el4));
 	}
 

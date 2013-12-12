@@ -1,4 +1,4 @@
-info.alenkov.tools.maven.tomcat7-ewar-plugin
+info.alenkov.tools.maven.tomcat7-ewar-plugin:1.1
 ============================================
 
 disclaimer: Since my english is poor, if anyone can help translate from Russian correctly, the original file readme_ru.md
