@@ -33,13 +33,6 @@ abstract public class AbstractDeploy extends AbstractMojo {
 	protected MojoExecutor.ExecutionEnvironment _pluginEnv;
 	protected Plugin                            _pluginWagon;
 
-	@Parameter(defaultValue = "${putty.key}")
-	@Deprecated
-	public String puttyKey;
-	@Parameter(defaultValue = "${ssh.user}@${ssh.host}")
-	@Deprecated
-	public String sshConnect;
-
 	@Parameter(property = "ssh.serverId")
 	public String sshServerId;
 	@Parameter(property = "ssh.host")
