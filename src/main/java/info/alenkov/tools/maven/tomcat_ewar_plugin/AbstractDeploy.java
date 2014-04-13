@@ -9,18 +9,19 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.settings.Server;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.twdata.maven.mojoexecutor.MojoExecutor;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 
 abstract public class AbstractDeploy extends AbstractMojo {
-	protected static final String  PLG_EXEC_PROTOCOL_SCP   = "-scp";
-	protected static final String  PLG_EXEC_PROTOCOL_SSH   = "-ssh";
-	protected static final String  PLG_EXEC_GOAL_EXEC      = goal("exec");
-	protected static final Xpp3Dom PLG_EXEC_CFG_EXEC_PSCP  = element(name("executable"), "pscp").toDom();
-	protected static final Xpp3Dom PLG_EXEC_CFG_EXEC_PLINK = element(name("executable"), "plink").toDom();
-	protected static final String  PLG_EXEC_CFG_ARGUMENTS  = "arguments";
+	public static final String WAGON_GOAL_UPLOAD = "upload";
+	public static final String WAGON_GOAL_EXEC   = "sshexec";
 
 	@Component
 	protected MavenProject       mavenProject;
@@ -30,26 +31,74 @@ abstract public class AbstractDeploy extends AbstractMojo {
 	protected BuildPluginManager pluginManager;
 
 	protected MojoExecutor.ExecutionEnvironment _pluginEnv;
-	protected Plugin                            _pluginExec;
+	protected Plugin                            _pluginWagon;
 
-	@Parameter(defaultValue = "${ssh.user}@${ssh.host}")
-	public String sshConnect;
 	@Parameter(defaultValue = "${putty.key}")
+	@Deprecated
 	public String puttyKey;
+	@Parameter(defaultValue = "${ssh.user}@${ssh.host}")
+	@Deprecated
+	public String sshConnect;
+
+	@Parameter(property = "ssh.serverId")
+	public String sshServerId;
+	@Parameter(property = "ssh.host")
+	public String sshHost;
+	@Parameter(defaultValue = "~", property = "ssh.home")
+	public String sshHome;
+
+	@Parameter(property = "maven.plugin.wagon.version", defaultValue = "1.0-beta-5")
+	public String versionPluginWagon;
+
+	protected Server sshServer;
 
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		_pluginEnv = executionEnvironment(mavenProject, mavenSession, pluginManager);
-		_pluginExec = plugin("org.codehaus.mojo", "exec-maven-plugin", "1.2.1");
+
+		_pluginWagon = plugin("org.codehaus.mojo", "wagon-maven-plugin", versionPluginWagon);
+
+		sshServer = mavenSession.getSettings().getServer(sshServerId);
+		assert sshServer != null;
 	}
 
-	protected Xpp3Dom getPluginExecBaseConfig(String protocol) {
-		final Element el0 = element(name("argument"), protocol);
-		final Element el1 = element(name("argument"), "-4");
-		final Element el2 = element(name("argument"), "-agent");
-		final Element el3 = element(name("argument"), "-i");
-		final Element el4 = element(name("argument"), puttyKey);
-		return configuration(element(name(PLG_EXEC_CFG_ARGUMENTS), el0, el1, el2, el3, el4));
+	protected Element getSshCommands(String... commands) {
+		assert commands.length > 0;
+
+		List<Element> list = new ArrayList<Element>();
+		for (String command : commands) {
+			list.add(element(name("command"), command));
+		}
+		return element(name("commands"), list.toArray(new Element[list.size()]));
 	}
 
+	protected Element getWagonUrl() {
+		assert sshHome != null && sshHome.isEmpty();
+
+		return element(name("url"), "scp://" + sshServer.getUsername() + "@" + sshHost + sshHome);
+	}
+
+	protected Xpp3Dom getWagonConfig(Element... elements) {
+		assert elements.length > 0;
+
+		List<Element> list = new ArrayList<Element>(Arrays.asList(elements));
+		list.add(element(name("serverId"), sshServerId));
+		return configuration(list.toArray(new Element[list.size()]));
+	}
+
+	protected void runWagonCommandCleanDir(String dir, String mask) throws MojoExecutionException {
+		checkDirPath(dir);
+
+		final String cmd = "rm -Rf " + dir + "/" + mask;
+		final Element elCommands = getSshCommands(cmd);
+		Xpp3Dom cfg = getWagonConfig(elCommands, getWagonUrl());
+
+		executeMojo(_pluginWagon, WAGON_GOAL_EXEC, cfg, _pluginEnv);
+	}
+
+	protected void checkDirPath(String path) {
+		assert !path.equals("/");
+		assert !path.contains("../");
+		assert path.startsWith("./") || (!path.startsWith("~/") && !path.startsWith("/"));
+	}
 }

@@ -15,8 +15,8 @@ import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
       requiresDependencyResolution = ResolutionScope.TEST,
       defaultPhase = LifecyclePhase.PROCESS_SOURCES, threadSafe = true)
 public class DeployDepsMojo extends AbstractDeploy {
+	public static final String FILE_MASK = "*.jar";
 
-	public static final String JAR_MASK = "/*.jar";
 	@Parameter(required = false)
 	public String excludeGroupIds;
 	@Parameter(defaultValue = "compile")
@@ -24,15 +24,17 @@ public class DeployDepsMojo extends AbstractDeploy {
 	@Parameter(defaultValue = "${project.build.directory}/dependency")
 	public String dependencyDirectory;
 
-	@Parameter(defaultValue = "~/bin/shutdown.sh")
+	@Parameter(defaultValue = "./bin/shutdown.sh", property = "tomcat.script.shutdown")
 	public String tomcatScriptShutdown;
-	@Parameter(defaultValue = "~/bin/startup.sh")
+	@Parameter(defaultValue = "./bin/startup.sh", property = "tomcat.script.startup")
 	public String tomcatScriptStartup;
-	@Parameter(defaultValue = "${maven.tomcat.sharedDirectory}")
+	@Parameter(defaultValue = "./shared", property = "tomcat.dir.shared")
 	public String tomcatDirShared;
 
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
+		checkDirPath(tomcatDirShared);
+
 		super.execute();
 		copyDependencies();
 		tomcatShutdown();
@@ -53,45 +55,28 @@ public class DeployDepsMojo extends AbstractDeploy {
 	}
 
 	private void tomcatShutdown() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SSH);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), sshConnect).toDom());
-		arguments.addChild(element(name("argument"), tomcatScriptShutdown).toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PLINK);
+		Xpp3Dom cfg = getWagonConfig(getSshCommands(tomcatScriptShutdown), getWagonUrl());
 
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		executeMojo(_pluginWagon, WAGON_GOAL_EXEC, cfg, _pluginEnv);
 	}
 
 	private void tomcatStartup() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SSH);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), sshConnect).toDom());
-		arguments.addChild(element(name("argument"), tomcatScriptStartup).toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PLINK);
+		Xpp3Dom cfg = getWagonConfig(getSshCommands(tomcatScriptStartup), getWagonUrl());
 
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		executeMojo(_pluginWagon, WAGON_GOAL_EXEC, cfg, _pluginEnv);
 	}
 
 	private void cleanDirSharedLibrary() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SSH);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), sshConnect).toDom());
-		arguments.addChild(element(name("argument"), "rm").toDom());
-		arguments.addChild(element(name("argument"), "-f").toDom());
-		arguments.addChild(element(name("argument"), tomcatDirShared + JAR_MASK).toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PLINK);
-
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		runWagonCommandCleanDir(tomcatDirShared, FILE_MASK);
 	}
 
 	private void uploadDirSharedLibrary() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SCP);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), dependencyDirectory + "/" + dependencyScope + JAR_MASK).toDom());
-		arguments.addChild(element(name("argument"), sshConnect + ":" + tomcatDirShared + "/").toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PSCP);
+		final Element elToDir = element(name("toDir"), tomcatDirShared);
+		final Element elFromDir = element(name("fromDir"), dependencyDirectory + "/" + dependencyScope);
+		final Element elIncludes = element(name("includes"), FILE_MASK);
+		Xpp3Dom cfg = getWagonConfig(elIncludes, elFromDir, elToDir, getWagonUrl());
 
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		executeMojo(_pluginWagon, WAGON_GOAL_UPLOAD, cfg, _pluginEnv);
 	}
 
 }

@@ -7,17 +7,17 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
-import static org.twdata.maven.mojoexecutor.MojoExecutor.element;
-import static org.twdata.maven.mojoexecutor.MojoExecutor.executeMojo;
-import static org.twdata.maven.mojoexecutor.MojoExecutor.name;
+import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 
 @Mojo(name = "deploy-static", defaultPhase = LifecyclePhase.PACKAGE)
 public class DeployStaticMojo extends AbstractDeploy {
 	private static final String PACKAGING_TYPE = "war";
+	public static final  String FILE_MASK      = "*";
+	public static final  String INCLUDE_MASK   = "**";
 
-	@Parameter(defaultValue = "${project.build.directory}/${project.build.finalName}/static/*")
+	@Parameter(defaultValue = "${project.build.directory}/${project.build.finalName}/static")
 	public String staticDirectory;
-	@Parameter(defaultValue = "${maven.tomcat.staticDirectory}")
+	@Parameter(defaultValue = "./static_files", property = "tomcat.dir.static")
 	public String tomcatDirStatic;
 
 	@Override
@@ -31,26 +31,17 @@ public class DeployStaticMojo extends AbstractDeploy {
 	}
 
 	private void cleanDirStaticFiles() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SSH);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), sshConnect).toDom());
-		arguments.addChild(element(name("argument"), "rm").toDom());
-		arguments.addChild(element(name("argument"), "-rf").toDom());
-		arguments.addChild(element(name("argument"), tomcatDirStatic + "/*").toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PLINK);
-
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		runWagonCommandCleanDir(tomcatDirStatic, FILE_MASK);
 	}
 
 	private void uploadDirStaticFiles() throws MojoExecutionException {
-		Xpp3Dom cfg = getPluginExecBaseConfig(PLG_EXEC_PROTOCOL_SCP);
-		final Xpp3Dom arguments = cfg.getChild(PLG_EXEC_CFG_ARGUMENTS);
-		arguments.addChild(element(name("argument"), "-r").toDom());
-		arguments.addChild(element(name("argument"), staticDirectory).toDom());
-		arguments.addChild(element(name("argument"), sshConnect + ":" + tomcatDirStatic + "/").toDom());
-		cfg.addChild(PLG_EXEC_CFG_EXEC_PSCP);
+		final Element elToDir = element(name("toDir"), tomcatDirStatic);
+		final Element elFromDir = element(name("fromDir"), staticDirectory);
+		final Element elIncludes = element(name("includes"), INCLUDE_MASK);
+		Xpp3Dom cfg = getWagonConfig(elFromDir, elToDir, elIncludes, getWagonUrl());
 
-		executeMojo(_pluginExec, PLG_EXEC_GOAL_EXEC, cfg, _pluginEnv);
+		executeMojo(_pluginWagon, WAGON_GOAL_UPLOAD, cfg, _pluginEnv);
 	}
+
 
 }
