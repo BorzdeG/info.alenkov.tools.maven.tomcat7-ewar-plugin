@@ -1,12 +1,7 @@
 # IDE: IntelliJ Idea
-.idea/libraries/
-.idea/scopes/
-.idea/.name
-.idea/misc.xml
-.idea/uiDesigner.xml
-.idea/workspace.xml
-.idea/vcs.xml
+.idea/
 
 #General
 target/
 *.log
+*.iml
